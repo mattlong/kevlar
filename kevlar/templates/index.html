@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block styles %}
+  <link rel="stylesheet" href="{{STATIC_URL}}style.css">
+{% endblock %}
+{% block content %}
+<ul>
+{% for testsuite in testsuites %}
+  <li><a href="/testsuites/{{testsuite}}">{{testsuite}}</a></li>
+{% endfor %}
+</ul>
+{% endblock %}
