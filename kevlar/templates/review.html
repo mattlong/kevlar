@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block styles %}
+{% endblock %}
+{% block content %}
+{% for name, test in baseline.tests.iteritems() %}
+  <div class="test">
+    <h3>{{test.name}}</h3>
+<pre class="status-code">{{test.response.status_code}}</pre>
+<pre class="headers">
+{%- for k, v in test.response.headers.iteritems() %}
+<span><span class="key">{{k}}</span>: <span class="key">{{v}}</span></span>
+{%- endfor %}
+</pre>
+<pre class="body">
+{{ test.response.pbody|safe }}
+</pre>
+  </div>
+{% endfor %}
+{% endblock %}

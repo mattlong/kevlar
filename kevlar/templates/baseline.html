@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% block styles %}
 {% endblock %}
+
 {% block content %}
-{% for name, test in results.tests.iteritems() %}
-  <div class="test">
-    <h3>Foo {{test.name}}</h3>
+
+
+{% for name, test in baseline.tests.iteritems() %}
+<div class="test">
+<h3>{{test.name}}</h3>
 <pre class="status-code">{{test.response.status_code}}</pre>
 <pre class="headers">
 {%- for k, v in test.response.headers.iteritems() %}
@@ -14,6 +17,52 @@
 <pre class="body">
 {{ test.response.body|tojson(indent=2) }}
 </pre>
-  </div>
+</div>
 {% endfor %}
+
+{% if results %}
+<script>
+
+
+function showDiffs(results) {
+    for (var name in results.tests) {
+        var test = results.tests[name];
+        var diffs = test.diffs || [];
+        for (var i = 0; i < diffs.length; i++) {
+            var diff = diffs[i];
+            console.warn(diff);
+        }
+    }
+}
+
+var results = {{ results|tojson }};
+showDiffs(results);
+
+var transforms = {
+    'object': {
+        'tag': 'div',
+        'class': 'package ${show} ${type}',
+        'children': [
+            {
+                'tag': 'div',
+                'class':'header',
+                'children': [
+                {
+                    'tag': 'div',
+                    'class': 'arrow'
+                },
+                {'tag':'span','class':'name','html':'${name}'},
+                {'tag':'span','class':'value','html':function(obj) {
+                    var value = getValue(obj.value);
+                    if( value !== undefined ) return(" : " + value);
+                    else return('');
+                }},
+                {'tag':'span','class':'type','html':'${type}'}
+            ]},
+            {'tag':'div','class':'children','children':function(obj){return(children(obj.value));}}
+        ]}
+    };
+
+</script>
+{% endif %}
 {% endblock %}
