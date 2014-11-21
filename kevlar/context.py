@@ -5,7 +5,7 @@ _ENVIRONMENT = Environment()
 
 def update_global_context(context):
     if context:
-        _ENVIRONMENT.globals = copy(context)
+        _ENVIRONMENT.globals.update(copy(context))
 
 
 class Context(object):

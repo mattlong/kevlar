@@ -104,6 +104,8 @@ class TestSuite(object):
         update_global_context(context)
 
     def run_tests(self, tests):
+        self.context.update_context('base_url', self.test_class.base_url)
+
         for raw_test in tests['tests']:
             test = self.test_class(raw_test, self.context)
 
