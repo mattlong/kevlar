@@ -26,6 +26,7 @@ class Context(object):
             'name': test.name,
             'method': request.method,
             'url': request.url,
+            'params': test.params,
             'body': body,
         }
         self._context[test.name] = context
@@ -33,3 +34,6 @@ class Context(object):
     def format(self, string):
         template = _ENVIRONMENT.from_string(string)
         return template.render(**self._context)
+
+    def update_context(self, key, value):
+        self._context[key] = value

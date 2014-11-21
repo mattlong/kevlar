@@ -1,14 +1,22 @@
 import os
 import json
+from copy import deepcopy
 from requests import Request
 import requests
 from urlparse import urlparse
 from time import time
 
-from kevlar.checks import compare
+from kevlar.checks import compare, DateHeader
 from kevlar.context import Context, update_global_context
 from kevlar.formats import JSON
 from kevlar.log import LoggingHandler
+from kevlar.version import VERSION_STRING
+
+__author__ = 'Matt Long'
+__copyright__ = 'Copyright 2014, Matt Long'
+__license__ = 'MIT'
+__version__ = VERSION_STRING
+__maintainer__ = 'Matt Long'
 
 
 class Test(object):
@@ -16,18 +24,18 @@ class Test(object):
     data_param_format = JSON()
     common_headers = {}
 
-    def __init__(self, info, lookups):
+    def __init__(self, info, context):
         self.name = info['name']
         self.method = info['verb'].upper()
-        self.url = self.get_full_url(lookups.format(info['url']))
+        self.url = self.get_full_url(context.format(info['url']))
 
         self.params = {}
         for k, v in info.get('params', {}).items():
-            self.params[str(k)] = lookups.format(str(v))
+            self.params[str(k)] = context.format(str(v))
 
         self.headers = {}
         for k, v in info.get('headers', {}).items():
-            self.headers[str(k)] = lookups.format(str(v))
+            self.headers[str(k)] = context.format(str(v))
 
     def get_full_url(self, partial_url):
         u = urlparse(partial_url)
@@ -83,6 +91,7 @@ class TestSuite(object):
     def __init__(self, data_directory):
         self.data_directory = data_directory
         self.extra_test_handlers = self.extra_test_handlers or []
+        self.extra_modernize_functions = self.extra_modernize_functions or []
         self.context = self.context_class()
 
         internal_handlers = [self.context]
@@ -176,21 +185,53 @@ class TestSuite(object):
         with open(self.last_run_path, 'w') as f:
             f.write(json.dumps(test_results, indent=2, sort_keys=True))
 
+    def modernize_baseline(self):
+        baseline = self.load_baseline()
+        for name, test in baseline['tests'].items():
+            self.modernize_test(test)
+
+        self.save_baseline(baseline)
+
+    def modernize_test(self, test):
+        if 'date' in test['response']['headers']:
+            test['response']['headers']['date'] = DateHeader.serialize()
+
+        for f in self.extra_modernize_functions:
+            f(test)
+
+    def add_test_to_baseline(self, baseline, test, request, response):
+        serialzied_test = {
+            'name': test.name,
+            'method': request.method,
+            'url': request.url,
+            'response': deepcopy(response),
+        }
+        self.modernize_test(serialzied_test)
+
+        baseline['tests'][test.name] = serialzied_test
+
     def calibrate(self):
         tests = self.load_tests()
 
-        baseline = {
-            'time': int(time()),
-            'tests': {},
-        }
+        try:
+            baseline = self.load_baseline()
+        except IOError:
+            baseline = {
+                'time': int(time()),
+                'tests': {},
+            }
 
         for (test, request, response) in self.run_tests(tests):
-            baseline['tests'][test.name] = {
-                'name': test.name,
-                'method': request.method,
-                'url': request.url,
-                'response': response,
-            }
+            if test.name in baseline['tests']:
+                if test.name in ['document_list_created_after']:
+                    print 'updating test %s in baseline, old value was:' % test.name
+                    print json.dumps(baseline['tests'][test.name], indent=2, sort_keys=True)
+                    self.add_test_to_baseline(baseline, test, request, response)
+                else:
+                    print 'ignoring test %s since it already exists in baseline' % test.name
+            else:
+                print 'adding test %s to baseline' % test.name
+                self.add_test_to_baseline(baseline, test, request, response)
 
         self.save_baseline(baseline)
 
@@ -208,26 +249,35 @@ class TestSuite(object):
                 'name': test.name,
                 'method': request.method,
                 'url': request.url,
+                'params': test.params,
                 'response': response,
             }
             test_results['tests'][test.name] = test_result
 
-            baseline_result = baseline['tests'].get(test.name)
-
-            print '---%s---' % test.name
-            test_result['diffs'] = self.compare_test_result(baseline_result, test_result)
-            for diff in test_result['diffs']:
-                print diff
+            test_result['diffs'] = self.compare_test_result(baseline, test_results, test.name)
+            if test_result['diffs']:
+                print '---%s---' % test.name
+                for diff in test_result['diffs']:
+                    print diff
 
         self.save_test_results(test_results)
 
-    def compare_test_result(self, baseline, new):
+    def compare_test_result(self, baseline, new, test_name):
         diffs = []
-        if not baseline and new:
-            #TODO add to new_tests?
+        baseline_result = baseline['tests'].get(test_name)
+        new_result = new['tests'].get(test_name)
+
+        if not new_result:
+            diffs.append({'status': 'test_removed', 'name': test_name})
             return diffs
 
-        for thing in compare(baseline['response'], new['response']):
+        if not baseline_result:
+            diffs.append({'status': 'test_added', 'name': test_name})
+            return diffs
+
+        self.context.update_context('_', new_result)
+
+        for thing in compare(baseline_result['response'], new_result['response'], self.context):
             diffs.append(thing)
 
         return diffs
