@@ -163,9 +163,18 @@ class TestSuite(object):
         #TODO validation
         return baseline
 
+    def pretty_print(self, value):
+        val = json.dumps(value, indent=2, sort_keys=True)
+
+        # json.dumps has a bug in some versions where trailing whitespace
+        # exists in dict and list lines, so we must remove it
+        val = '\n'.join(map(lambda l: l.rstrip(), val.split('\n')))
+
+        return val
+
     def save_baseline(self, baseline):
         with open(self.baseline_path, 'w') as f:
-            f.write(json.dumps(baseline, indent=2, sort_keys=True))
+            f.write(self.pretty_print(baseline))
 
     def has_baseline(self):
         try:
@@ -183,7 +192,7 @@ class TestSuite(object):
 
     def save_test_results(self, test_results):
         with open(self.last_run_path, 'w') as f:
-            f.write(json.dumps(test_results, indent=2, sort_keys=True))
+            f.write(self.pretty_print(test_results))
 
     def modernize_baseline(self):
         baseline = self.load_baseline()
