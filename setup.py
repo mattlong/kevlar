@@ -1,16 +1,16 @@
 from setuptools import setup, find_packages
 
-from kevlar import __version__
+VERSION_STRING = '0.0.5'
 
 setup(
     name="kevlar",
     packages=find_packages(),
-    version = __version__,
+    version = VERSION_STRING,
     author="Matt Long",
     license="MIT",
     author_email="matt@mattlong.org",
     url="https://github.com/mattlong/kevlar",
-    download_url = 'https://github.com/mattlong/kevlar/tarball/' + __version__,
+    download_url = 'https://github.com/mattlong/kevlar/tarball/' + VERSION_STRING,
     description="Kevlar will be something cool",
     install_requires=['requests>=2.4.1'],
     zip_safe=False,
