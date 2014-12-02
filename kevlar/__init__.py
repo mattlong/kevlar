@@ -26,16 +26,16 @@ class Test(object):
 
     def __init__(self, info, context):
         self.name = info['name']
-        self.method = info['verb'].upper()
+        self.method = info['verb'].upper().encode('ascii')
         self.url = self.get_full_url(context.format(info['url']))
 
         self.params = {}
         for k, v in info.get('params', {}).items():
-            self.params[str(k)] = context.format(str(v))
+            self.params[k] = context.format(str(v))
 
         self.headers = {}
         for k, v in info.get('headers', {}).items():
-            self.headers[str(k)] = context.format(str(v))
+            self.headers[k.encode('ascii')] = context.format(str(v)).encode('ascii')
 
     def get_full_url(self, partial_url):
         u = urlparse(partial_url)
