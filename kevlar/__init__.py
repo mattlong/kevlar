@@ -24,7 +24,7 @@ class Test(object):
     data_param_format = JSON()
     common_headers = {}
 
-    def __init__(self, info, context):
+    def __init__(self, info, context, file_directory):
         self.name = info['name']
         self.method = info['verb'].upper().encode('ascii')
         self.url = self.get_full_url(context.format(info['url']))
@@ -33,9 +33,15 @@ class Test(object):
         for k, v in info.get('params', {}).items():
             self.params[k] = context.format(str(v))
 
+        self.files = {}
+        for k, v in info.get('files', {}).items():
+            v = context.format(str(v))
+            self.files[k] = open(os.path.join(file_directory, v), 'rb')
+
         self.headers = {}
         for k, v in info.get('headers', {}).items():
-            self.headers[k.encode('ascii')] = context.format(str(v)).encode('ascii')
+            v = context.format(str(v))
+            self.headers[k.encode('ascii')] = v.encode('ascii')
 
     def get_full_url(self, partial_url):
         u = urlparse(partial_url)
@@ -58,8 +64,12 @@ class Test(object):
         if self.method in ['OPTIONS', 'GET', 'DELETE']:
             query_params.update(self.params)
         else:
-            data = self.data_param_format.format(self.params)
-            headers['Content-Type'] = self.data_param_format.content_type
+            if self.files:
+                # ignore data param formatting so that a multipart form will be made
+                data = self.params
+            else:
+                data = self.data_param_format.format(self.params)
+                headers['Content-Type'] = self.data_param_format.content_type
 
         raw_req = Request(
                 method=self.method,
@@ -67,6 +77,7 @@ class Test(object):
                 headers=headers,
                 data=data,
                 params=query_params,
+                files=self.files,
         )
 
         self.prepared_request = raw_req.prepare()
@@ -110,7 +121,7 @@ class TestSuite(object):
         self.context.update_context('base_url', self.test_class.base_url)
 
         for raw_test in tests['tests']:
-            test = self.test_class(raw_test, self.context)
+            test = self.test_class(raw_test, self.context, self.data_directory)
 
             prepared_request = test.prepare()
 
