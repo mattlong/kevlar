@@ -236,14 +236,14 @@ class TestSuite(object):
 
         for (test, request, response) in self.run_tests(tests):
             if test.name in baseline['tests']:
-                if test.name in ['document_list_created_after']:
-                    print 'updating test %s in baseline, old value was:' % test.name
-                    print json.dumps(baseline['tests'][test.name], indent=2, sort_keys=True)
+                if test.name in []:
+                    print('updating test %s in baseline, old value was:' % test.name)
+                    print(json.dumps(baseline['tests'][test.name], indent=2, sort_keys=True))
                     self.add_test_to_baseline(baseline, test, request, response)
                 else:
-                    print 'ignoring test %s since it already exists in baseline' % test.name
+                    print('ignoring test %s since it already exists in baseline' % test.name)
             else:
-                print 'adding test %s to baseline' % test.name
+                print('adding test %s to baseline' % test.name)
                 self.add_test_to_baseline(baseline, test, request, response)
 
         self.save_baseline(baseline)
@@ -269,9 +269,9 @@ class TestSuite(object):
 
             test_result['diffs'] = self.compare_test_result(baseline, test_results, test.name)
             if test_result['diffs']:
-                print '---%s---' % test.name
+                print('---%s---' % test.name)
                 for diff in test_result['diffs']:
-                    print diff
+                    print(diff)
 
         self.save_test_results(test_results)
 
