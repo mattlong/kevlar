@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION_STRING = '0.0.6'
+VERSION_STRING = '0.0.7'
 
 setup(
     name="kevlar",
