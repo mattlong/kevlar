@@ -7,7 +7,7 @@ from urlparse import urlparse
 from time import time
 
 from kevlar.checks import compare, DateHeader
-from kevlar.context import Context, update_global_context
+from kevlar.context import Context
 from kevlar.formats import JSON
 from kevlar.log import LoggingHandler
 from kevlar.version import VERSION_STRING
@@ -88,6 +88,7 @@ class TestSuite(object):
     logging_class = LoggingHandler
     context_class = Context
     optional_headers = []
+    global_context = None
 
     def __init__(self, data_directory):
         self.data_directory = data_directory
@@ -96,14 +97,14 @@ class TestSuite(object):
         self.context = self.context_class()
         self.optional_headers = self.optional_headers or []
 
+        self.global_context = self.global_context or {}
+        self.context.update_context_dict(self.global_context)
+
         internal_handlers = [self.context]
         if self.logging_class:
             internal_handlers.append(self.logging_class())
 
         self.handlers = internal_handlers + [handler() for handler in self.extra_test_handlers]
-
-    def set_context(self, context):
-        update_global_context(context)
 
     def run_tests(self, tests):
         self.context.update_context('base_url', self.test_class.base_url)
@@ -155,7 +156,7 @@ class TestSuite(object):
             tests = json.load(f)
 
         if update_context and 'context' in tests:
-            self.set_context(tests['context'])
+            self.context.update_context_dict(tests['context'])
 
         #TODO validation
         return tests

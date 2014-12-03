@@ -1,15 +1,7 @@
-from copy import copy
-from jinja2 import Environment
-_ENVIRONMENT = Environment()
-
-
-def update_global_context(context):
-    if context:
-        _ENVIRONMENT.globals.update(copy(context))
-
-
 class Context(object):
     def __init__(self):
+        from jinja2 import Environment
+        self._env = Environment()
         self._memory = {}
         self._context = {}
 
@@ -32,8 +24,12 @@ class Context(object):
         self._context[test.name] = context
 
     def format(self, string):
-        template = _ENVIRONMENT.from_string(string)
+        template = self._env.from_string(string)
         return template.render(**self._context)
+
+    def update_context_dict(self, value):
+        from copy import deepcopy
+        self._context.update(deepcopy(value))
 
     def update_context(self, key, value):
         self._context[key] = value
