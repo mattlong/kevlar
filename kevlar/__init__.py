@@ -87,12 +87,14 @@ class TestSuite(object):
     extra_test_handlers = []
     logging_class = LoggingHandler
     context_class = Context
+    optional_headers = []
 
     def __init__(self, data_directory):
         self.data_directory = data_directory
         self.extra_test_handlers = self.extra_test_handlers or []
         self.extra_modernize_functions = self.extra_modernize_functions or []
         self.context = self.context_class()
+        self.optional_headers = self.optional_headers or []
 
         internal_handlers = [self.context]
         if self.logging_class:
@@ -278,6 +280,10 @@ class TestSuite(object):
         baseline_result = baseline['tests'].get(test_name)
         new_result = new['tests'].get(test_name)
 
+        optional_paths = []
+        for header in self.optional_headers:
+            optional_paths.append('.'.join(['headers', header]))
+
         if not new_result:
             diffs.append({'status': 'test_removed', 'name': test_name})
             return diffs
@@ -289,6 +295,10 @@ class TestSuite(object):
         self.context.update_context('_', new_result)
 
         for thing in compare(baseline_result['response'], new_result['response'], self.context):
+            if thing['status'] in ['missing', 'extra']:
+                if '.'.join(thing['path']) in optional_paths:
+                    continue
+
             diffs.append(thing)
 
         return diffs
