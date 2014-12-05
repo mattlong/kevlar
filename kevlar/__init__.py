@@ -292,9 +292,14 @@ class TestSuite(object):
         baseline_result = baseline['tests'].get(test_name)
         new_result = new['tests'].get(test_name)
 
+        def serialize_path(path):
+            to_string = lambda a: a if isinstance(a, basestring) else str(a)
+
+            return '.'.join(map(to_string, thing['path']))
+
         optional_paths = []
         for header in self.optional_headers:
-            optional_paths.append('.'.join(['headers', header]))
+            optional_paths.append(serialize_path(['headers', header]))
 
         if not new_result:
             diffs.append({'status': 'test_removed', 'name': test_name})
@@ -308,7 +313,7 @@ class TestSuite(object):
 
         for thing in compare(baseline_result['response'], new_result['response'], self.context):
             if thing['status'] in ['missing', 'extra']:
-                if '.'.join(thing['path']) in optional_paths:
+                if serialize_path(thing['path']) in optional_paths:
                     continue
 
             diffs.append(thing)
