@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 from copy import deepcopy
 from requests import Request
 import requests
@@ -135,14 +136,24 @@ class TestSuite(object):
                 if hasattr(handler, 'on_response'):
                     handler.on_response(test, request, raw_response)
 
-            response = self._extract_response_info(raw_response)
+            response = self._extract_response_info(raw_response, test)
             yield test, request, response
 
-    def _extract_response_info(self, response):
+    def _extract_response_info(self, response, test):
         try:
             body = response.json()
         except ValueError:
-            body = response.content
+            raw_body = response.content
+            response_path = os.path.join(self.data_directory, '%s.last-response' % test.name)
+            with open(response_path, 'w') as f:
+                f.write(raw_body)
+
+            body_hash = hashlib.md5(raw_body).hexdigest()
+            body = {
+                '_t': 'hash',
+                'value': body_hash,
+            }
+            print('non-JSON response was received for test "%s", using hash of contents. Response saved to %s' % (test.name, response_path))
 
         return {
             'status_code': response.status_code,
@@ -260,7 +271,7 @@ class TestSuite(object):
 
         self.save_baseline(baseline)
 
-    def regress(self):
+    def regress(self, add_new_tests=False):
         baseline = self.load_baseline()
         tests = self.load_tests()
 
@@ -285,7 +296,12 @@ class TestSuite(object):
                 for diff in test_result['diffs']:
                     print(diff)
 
+                    if add_new_tests and diff['status'] == 'test_added':
+                        self.add_test_to_baseline(baseline, test, request, response)
+
         self.save_test_results(test_results)
+        if add_new_tests:
+            self.save_baseline(baseline)
 
     def compare_test_result(self, baseline, new, test_name):
         diffs = []
@@ -295,7 +311,7 @@ class TestSuite(object):
         def serialize_path(path):
             to_string = lambda a: a if isinstance(a, basestring) else str(a)
 
-            return '.'.join(map(to_string, thing['path']))
+            return '.'.join(map(to_string, path))
 
         optional_paths = []
         for header in self.optional_headers:

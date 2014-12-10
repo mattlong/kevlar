@@ -78,6 +78,7 @@ def get_comparison(value, context):
         _type = value[type_field]
         comparisons = {
             'equal':        Equality,
+            'hash':         Equality,
             'string':       String,
             'regex':        Regex,
             'uuid':         Uuid,
@@ -97,6 +98,7 @@ def get_comparison(value, context):
 def compare(old, new, context):
     def compare_values(path, value, other):
         value = get_comparison(value, context)
+        other = get_comparison(other, context)
 
         if isinstance(value, MutableMapping) and isinstance(other, MutableMapping):
             for thing in compare_dicts(path, value, other):
