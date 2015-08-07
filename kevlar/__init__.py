@@ -5,7 +5,7 @@ from copy import deepcopy
 from requests import Request
 import requests
 from urlparse import urlparse
-from time import time
+from time import time, sleep
 
 from kevlar.checks import compare, DateHeader
 from kevlar.context import Context
@@ -89,10 +89,23 @@ class Test(object):
         if not self.prepared_request:
             raise Exception('run() called before prepare()')
 
-        s = requests.Session()
-        resp = s.send(self.prepared_request)
+        num_tries = 0
+        while True:
 
-        return resp.request, resp
+            num_tries += 1
+            s = requests.Session()
+            resp = s.send(self.prepared_request)
+
+            if num_tries > 5:
+                return resp.request, resp
+
+            if 'Retry-After' in resp.headers:
+                retry_after = int(resp.headers['Retry-After'])
+                print('Retrying request after %s seconds...' % retry_after)
+                sleep(retry_after)
+                continue
+
+            return resp.request, resp
 
 
 class TestSuite(object):
@@ -191,7 +204,12 @@ class TestSuite(object):
         return baseline
 
     def pretty_print(self, value):
-        val = json.dumps(value, indent=2, sort_keys=True)
+        def json_default(o):
+            if hasattr(o, 'serialize'):
+                return o.serialize()
+            raise TypeError
+
+        val = json.dumps(value, indent=2, sort_keys=True, default=json_default)
 
         # json.dumps has a bug in some versions where trailing whitespace
         # exists in dict and list lines, so we must remove it
@@ -230,7 +248,7 @@ class TestSuite(object):
 
     def modernize_test(self, test):
         if 'date' in test['response']['headers']:
-            test['response']['headers']['date'] = DateHeader.serialize()
+            test['response']['headers']['date'] = DateHeader().serialize()
 
         for f in self.extra_modernize_functions:
             f(test)
@@ -258,7 +276,7 @@ class TestSuite(object):
             }
 
         for (test, request, response) in self.run_tests(tests):
-            if test.name in baseline['tests']:
+            if True or test.name in baseline['tests']:
                 if test.name in []:
                     print('updating test %s in baseline, old value was:' % test.name)
                     print(json.dumps(baseline['tests'][test.name], indent=2, sort_keys=True))

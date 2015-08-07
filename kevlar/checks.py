@@ -5,6 +5,14 @@ except ImportError:
     from collections import MutableMapping, MutableSequence
 
 
+class WithoutValueMixin(object):
+    def __init__(self, value=None, **kwargs):
+        self._value = None
+
+    def serialize(self):
+        val = {'_t': self.name}
+        return val
+
 class Comparison(object):
     def __init__(self, obj, **kwargs):
         self._value = obj.get('value')
@@ -12,9 +20,11 @@ class Comparison(object):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    @classmethod
-    def serialize(cls):
-        val = {'_t': cls.name}
+    def __repr__(self):
+        return unicode(self.serialize())
+
+    def serialize(self):
+        val = {'_t': self.name, 'value': self._value}
         return val
 
 class Equality(Comparison):
@@ -22,7 +32,10 @@ class Equality(Comparison):
     def __eq__(self, other):
         return self._value == other
 
-class String(Comparison):
+class Hash(Equality):
+    name = 'hash'
+
+class String(WithoutValueMixin, Comparison):
     name = 'string'
     def __eq__(self, other):
         return isinstance(other, basestring)
@@ -32,20 +45,20 @@ class Regex(Comparison):
     def __eq__(self, other):
         return re.match(self._value, other)
 
-class Uuid(Comparison):
+class Uuid(WithoutValueMixin, Comparison):
     name = 'uuid'
     _re = re.compile(r'[a-f0-9]{32}')
 
     def __eq__(self, other):
         return self._re.match(other)
 
-class DateHeader(Comparison):
+class DateHeader(WithoutValueMixin, Comparison):
     name = 'date'
     def __eq__(self, other):
         from email.utils import parsedate
         return bool(parsedate(other))
 
-class ISO8601DateTime(Comparison):
+class ISO8601DateTime(WithoutValueMixin, Comparison):
     name = 'iso-8601'
     _re = re.compile(
         r'(?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})'
@@ -78,7 +91,7 @@ def get_comparison(value, context):
         _type = value[type_field]
         comparisons = {
             'equal':        Equality,
-            'hash':         Equality,
+            'hash':         Hash,
             'string':       String,
             'regex':        Regex,
             'uuid':         Uuid,
